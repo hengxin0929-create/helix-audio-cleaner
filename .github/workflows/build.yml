@@ -1,0 +1,44 @@
+name: 构建跨平台安装包
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: 'x64'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install mutagen pyinstaller pillow
+      - run: python -c "from PIL import Image; img = Image.open('horse.icns'); img.save('horse.ico', sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])"
+      - run: pyinstaller --windowed --name "HELIX音频清理工具" --icon horse.ico --collect-all mutagen --noconfirm main.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HELIX音频清理工具-Windows
+          path: dist/HELIX音频清理工具.exe
+          retention-days: 30
+
+  mac-intel:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install mutagen pyinstaller
+      - run: pyinstaller --windowed --name "HELIX音频清理工具" --icon horse.icns --collect-all mutagen --noconfirm main.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HELIX音频清理工具-MacIntel
+          path: dist/HELIX音频清理工具.app
+          retention-days: 30
