@@ -38,6 +38,15 @@ import tkinter.ttk as ttk
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 
+# Windows 命令行下默认 cp1252，输出中文前强制 UTF-8（--windowed 打包时 stdout 可能为 None）
+if sys.platform == "win32":
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            if _stream is not None:
+                _stream.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
 # ---------------------------------------------------------------------------
 # 常量
 # ---------------------------------------------------------------------------

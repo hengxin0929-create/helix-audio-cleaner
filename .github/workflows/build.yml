@@ -6,6 +6,11 @@ on:
     tags:
       - 'v*'  # 推送 v 开头的 tag 时自动触发
 
+# Windows 控制台默认 cp1252，强制 Python 输出 UTF-8，避免中文日志崩溃
+env:
+  PYTHONIOENCODING: utf-8
+  PYTHONUTF8: '1'
+
 jobs:
   # ==================== Windows 安装包 ====================
   windows:

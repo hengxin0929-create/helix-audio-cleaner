@@ -9,6 +9,13 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+# Windows 控制台默认 cp1252，输出中文/✔ 前强制 UTF-8
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 import main as M  # noqa: E402
 
 FAILED = []
