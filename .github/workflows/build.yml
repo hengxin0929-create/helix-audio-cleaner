@@ -1,0 +1,116 @@
+name: 构建跨平台安装包
+
+on:
+  workflow_dispatch:  # 手动触发
+  push:
+    tags:
+      - 'v*'  # 推送 v 开头的 tag 时自动触发
+
+jobs:
+  # ==================== Windows 安装包 ====================
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: 'x64'
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 准备图标（无 ico 时由 icns 转换）
+        shell: bash
+        run: |
+          if [ ! -f horse.ico ]; then
+            python -c "from PIL import Image; img=Image.open('horse.icns'); img.save('horse.ico', sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])"
+          fi
+          ls -la horse.ico
+
+      - name: PyInstaller 打包（onedir）
+        shell: bash
+        run: |
+          set -e
+          pyinstaller --noconfirm --windowed --name HelixAudioCleaner \
+            --icon horse.ico \
+            --collect-all mutagen \
+            --collect-all cryptography \
+            main.py
+          echo "=== dist 目录 ==="
+          ls -la dist/HelixAudioCleaner/ | head -20
+          test -f dist/HelixAudioCleaner/HelixAudioCleaner.exe && echo "EXE 生成成功"
+
+      - name: 逻辑测试
+        shell: bash
+        run: python test_logic.py
+
+      - name: 提取版本号
+        id: ver
+        shell: bash
+        run: |
+          VER=$(grep -Eo '## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | head -1 | tr -d '# v')
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "当前版本: $VER"
+
+      - name: Inno Setup 生成安装包
+        shell: pwsh
+        run: |
+          $env:Path += ";C:\Program Files (x86)\Inno Setup 6"
+          iscc /DMyAppVersion="${{ steps.ver.outputs.version }}" installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup 打包失败" }
+          Get-ChildItem Output
+
+      - name: 生成便携版 zip
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.ver.outputs.version }}"
+          Compress-Archive -Path "dist/HelixAudioCleaner/*" `
+            -DestinationPath "HELIX_Audio_Cleaner_portable_v$ver.zip"
+
+      - name: 上传安装包产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: HELIX-Audio-Cleaner-Windows-Setup
+          path: |
+            Output/*.exe
+            HELIX_Audio_Cleaner_portable_v*.zip
+          retention-days: 90
+
+  # ==================== Mac Intel (x86_64) ====================
+  mac-intel:
+    runs-on: macos-13  # macos-13 是最后一个 Intel 架构 runner
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 打包 app
+        run: |
+          pyinstaller --noconfirm --windowed --name HelixAudioCleaner \
+            --icon horse.icns \
+            --collect-all mutagen \
+            --collect-all cryptography \
+            main.py
+          ls -la dist
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: HELIX-Audio-Cleaner-MacIntel
+          path: dist/HelixAudioCleaner.app
+          retention-days: 90
