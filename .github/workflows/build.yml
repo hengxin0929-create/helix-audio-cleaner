@@ -102,25 +102,31 @@ jobs:
           python-version: '3.11'
           architecture: 'x64'
 
-      - name: 安装依赖并确认架构
+      - name: 安装依赖（强制 Rosetta x86_64）
         run: |
-          set -x
-          echo "$PATH"
-          which -a python python3 || true
-          PYBIN="$(which python)"
-          file "$PYBIN"
-          python -c "import platform,sys; print('直接运行:', platform.machine(), sys.executable)"
-          arch -x86_64 python -c "import platform,sys; print('arch -x86_64:', platform.machine(), sys.executable)" || true
-          ls -la /Users/runner/setup-python 2>/dev/null || true
-          find /Users/runner -maxdepth 4 -name "python3.11" -type f 2>/dev/null | head -5
+          set -e
+          PY="$pythonLocation/bin/python3.11"
+          echo "使用解释器: $PY"
+          file "$PY"
+          # 显式以 x86_64 运行（universal2 二进制默认会按 arm64 启动）
+          arch -x86_64 "$PY" -c "import platform,sys; print('架构:', platform.machine(), sys.executable)"
+          test "$(arch -x86_64 "$PY" -c 'import platform; print(platform.machine())')" = "x86_64"
+          arch -x86_64 "$PY" -m pip install --upgrade pip
+          arch -x86_64 "$PY" -m pip install -r requirements.txt
+          # 确认关键二进制扩展也是 x86_64
+          arch -x86_64 "$PY" -c "import cryptography, PIL, tkinter; print('cryptography/PIL/tkinter 导入成功')"
+          SP=$(arch -x86_64 "$PY" -c "import cryptography,os; print(os.path.dirname(cryptography.__file__))")
+          lipo -archs "$SP"/hazmat/bindings/_rust.abi3*.so
 
       - name: 逻辑测试
-        run: python test_logic.py
+        run: |
+          arch -x86_64 "$pythonLocation/bin/python3.11" test_logic.py
 
       - name: PyInstaller 打包（x86_64）
         run: |
           set -e
-          pyinstaller --noconfirm --windowed --name HelixAudioCleaner \
+          arch -x86_64 "$pythonLocation/bin/python3.11" -m PyInstaller \
+            --noconfirm --windowed --name HelixAudioCleaner \
             --icon horse.icns \
             --collect-all mutagen \
             --collect-all cryptography \
@@ -132,7 +138,7 @@ jobs:
           file "$BIN"
           lipo -archs "$BIN"
           lipo -archs "$BIN" | grep -q x86_64
-          ! lipo -archs "$BIN" | grep -q arm64
+          if lipo -archs "$BIN" | grep -q arm64; then echo "错误：包含 arm64"; exit 1; fi
 
       - name: ad-hoc 签名
         run: |
