@@ -3,6 +3,7 @@
 ## v1.6.13 — 2026-10-13
 ### 工程
 - **GitHub Actions 新增 Mac Intel（x86_64）构建**：macos-13 物理 Intel runner 已淘汰，改为 macos-15（Apple Silicon）+ Rosetta 2 运行 x86_64 Python 交叉打包；构建时校验二进制仅含 x86_64 架构，做 ad-hoc 签名并以 ditto 打包 `HELIX_Audio_Cleaner_MacIntel_v版本号.zip`，解压即「HELIX音频清理工具.app」。
+    - 踩坑：actions/setup-python 的 x64 Python 是 universal2 二进制，默认按 arm64 启动，必须 `arch -x86_64` 显式运行；且 cryptography 48 起的新版 macOS wheel 只剩 arm64（源码编译会产出 arm64 扩展），构建时用 `--only-binary=:all:` 锁定含 x86_64 切片的 universal2 版本（48.0.1）。已在本机 Rosetta 下实机启动验证 GUI 正常。
 
 ## v1.6.12 — 2026-10-03
 ### 修复
