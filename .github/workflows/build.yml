@@ -88,34 +88,62 @@ jobs:
           retention-days: 90
 
   # ==================== Mac Intel (x86_64) ====================
+  # macos-13（Intel 硬件 runner）已淘汰，改用 macos-15（arm64）+ Rosetta 2
+  # 安装 x86_64 版 Python，PyInstaller 在 x86_64 解释器下即产出 Intel 包
   mac-intel:
-    runs-on: macos-13  # macos-13 是最后一个 Intel 架构 runner
+    runs-on: macos-15
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 设置 Python
+      - name: 设置 x86_64 Python（经 Rosetta 2）
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          architecture: 'x64'
 
-      - name: 安装依赖
+      - name: 安装依赖并确认架构
         run: |
+          python -c "import platform; print('Python 架构:', platform.machine())"
+          test "$(python -c 'import platform; print(platform.machine())')" = "x86_64"
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 打包 app
+      - name: 逻辑测试
+        run: python test_logic.py
+
+      - name: PyInstaller 打包（x86_64）
         run: |
+          set -e
           pyinstaller --noconfirm --windowed --name HelixAudioCleaner \
             --icon horse.icns \
             --collect-all mutagen \
             --collect-all cryptography \
             main.py
-          ls -la dist
+          # 改为中文 app 名，与本机交付版一致
+          mv dist/HelixAudioCleaner.app "dist/HELIX音频清理工具.app"
+          BIN="dist/HELIX音频清理工具.app/Contents/MacOS/HelixAudioCleaner"
+          echo "=== 二进制架构 ==="
+          file "$BIN"
+          lipo -archs "$BIN"
+          lipo -archs "$BIN" | grep -q x86_64
+          ! lipo -archs "$BIN" | grep -q arm64
+
+      - name: ad-hoc 签名
+        run: |
+          set -e
+          codesign --force --deep --sign - "dist/HELIX音频清理工具.app"
+          codesign --verify --verbose "dist/HELIX音频清理工具.app"
+
+      - name: 打包 zip
+        run: |
+          VER=$(grep -Eo '## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | head -1 | tr -d '# v')
+          ditto -c -k --keepParent "dist/HELIX音频清理工具.app" "HELIX_Audio_Cleaner_MacIntel_v$VER.zip"
+          ls -la "HELIX_Audio_Cleaner_MacIntel_v$VER.zip"
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: HELIX-Audio-Cleaner-MacIntel
-          path: dist/HelixAudioCleaner.app
+          path: HELIX_Audio_Cleaner_MacIntel_v*.zip
           retention-days: 90

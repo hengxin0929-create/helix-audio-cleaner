@@ -1,5 +1,9 @@
 # 代码更新日志
 
+## v1.6.13 — 2026-10-13
+### 工程
+- **GitHub Actions 新增 Mac Intel（x86_64）构建**：macos-13 物理 Intel runner 已淘汰，改为 macos-15（Apple Silicon）+ Rosetta 2 运行 x86_64 Python 交叉打包；构建时校验二进制仅含 x86_64 架构，做 ad-hoc 签名并以 ditto 打包 `HELIX_Audio_Cleaner_MacIntel_v版本号.zip`，解压即「HELIX音频清理工具.app」。
+
 ## v1.6.12 — 2026-10-03
 ### 修复
 - **Windows 控制台中文输出崩溃**：Windows 命令行默认 cp1252 编码，直接运行脚本输出中文/✔ 时会 UnicodeEncodeError。现启动时自动把标准输出切换为 UTF-8（GUI 打包版无控制台不受影响），GitHub Actions 构建同步强制 PYTHONIOENCODING=utf-8。
