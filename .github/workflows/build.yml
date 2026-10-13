@@ -112,7 +112,11 @@ jobs:
           arch -x86_64 "$PY" -c "import platform,sys; print('架构:', platform.machine(), sys.executable)"
           test "$(arch -x86_64 "$PY" -c 'import platform; print(platform.machine())')" = "x86_64"
           arch -x86_64 "$PY" -m pip install --upgrade pip
-          arch -x86_64 "$PY" -m pip install -r requirements.txt
+          # 关键：cryptography 48+ 不再提供 x86_64 兼容 wheel（新版仅 arm64），
+          # 必须 --only-binary 禁止源码编译，pip 会自动选含 universal2(x86_64)
+          # 切片的最新版本（47.x），否则 Rosetta 下会从 sdist 编出 arm64 扩展
+          arch -x86_64 "$PY" -m pip install --only-binary=:all: -r requirements.txt
+          arch -x86_64 "$PY" -m pip show cryptography | grep -E "^(Name|Version)"
           # 确认关键二进制扩展也是 x86_64
           arch -x86_64 "$PY" -c "import cryptography, PIL, tkinter; print('cryptography/PIL/tkinter 导入成功')"
           SP=$(arch -x86_64 "$PY" -c "import cryptography,os; print(os.path.dirname(cryptography.__file__))")
