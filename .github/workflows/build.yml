@@ -104,10 +104,15 @@ jobs:
 
       - name: 安装依赖并确认架构
         run: |
-          python -c "import platform; print('Python 架构:', platform.machine())"
-          test "$(python -c 'import platform; print(platform.machine())')" = "x86_64"
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          set -x
+          echo "$PATH"
+          which -a python python3 || true
+          PYBIN="$(which python)"
+          file "$PYBIN"
+          python -c "import platform,sys; print('直接运行:', platform.machine(), sys.executable)"
+          arch -x86_64 python -c "import platform,sys; print('arch -x86_64:', platform.machine(), sys.executable)" || true
+          ls -la /Users/runner/setup-python 2>/dev/null || true
+          find /Users/runner -maxdepth 4 -name "python3.11" -type f 2>/dev/null | head -5
 
       - name: 逻辑测试
         run: python test_logic.py
